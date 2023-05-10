@@ -220,13 +220,31 @@ function getTargetType(type: any, key: string, typeInfo: Teal.TLTypesCommandResu
     return targetType;
 }
 
+function adjustSymbolPartsForSelf(indexRoot: SyntaxNode, initialSymbolParts: string[], ): string[] {
+    if (indexRoot.parent && indexRoot.parent.type === "ERROR") {
+        let functionDeclaration = indexRoot.parent.firstNamedChild
+        if (functionDeclaration?.child(1)?.text === ":" && functionDeclaration.firstNamedChild) {
+            return [functionDeclaration.firstNamedChild.text]
+        }
+    }
+
+    const functionDeclaration = findNodeAbove(indexRoot, ['function_statement'])
+    const selfSymbol = functionDeclaration?.child(1)?.child(0)?.text
+    return selfSymbol ? [selfSymbol] : initialSymbolParts;
+}
+
+
 function autoCompleteIndex(indexRoot: SyntaxNode, typeInfo: Teal.TLTypesCommandResult, symbolsInScope: Map<string, Teal.Symbol>, position: Position): CompletionItem[] {
     let result: CompletionItem[] = [];
 
-    const symbolParts = getSymbolParts(indexRoot, position.line, position.character);
+    let symbolParts = getSymbolParts(indexRoot, position.line, position.character);
 
     if (symbolParts.length === 0) {
         return [];
+    }
+
+    if (symbolParts[0] === "self") {
+        symbolParts = adjustSymbolPartsForSelf(indexRoot, symbolParts);
     }
 
     let rootSymbol = symbolsInScope.get(symbolParts[0]);
